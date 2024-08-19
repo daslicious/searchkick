@@ -281,9 +281,19 @@ module Searchkick
     relation =
       if relation.respond_to?(:primary_key)
         primary_key = relation.primary_key
+
         raise Error, "Need primary key to load records" if !primary_key
 
-        relation.where(primary_key => ids)
+        relation = ids.reduce do |obj, id|
+          obj ||= relation.none
+          tenant, id = id.split('-')
+          rel = nil
+          Apartment::Tenant.switch(tenant) do
+            rel = relation.where(primary_key => id)
+          end
+          obj.merge(rel)
+        end
+        # relation.where(primary_key => ids)
       elsif relation.respond_to?(:queryable)
         relation.queryable.for_ids(ids)
       end
